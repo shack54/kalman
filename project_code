@@ -1,0 +1,99 @@
+import numpy as np
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+from numpy.linalg import inv
+
+iter = 50
+
+#Actual position of the ship
+actualX = 0
+actualY = 0
+
+#Process noise covariance
+Q = np.full((2,2), 0.0001)
+print('Q Matrix: ', Q.shape, '\n\n', Q)
+
+#Create 50 random x and y position measurements
+xPos = np.random.normal(0, 0.5, iter)
+yPos = np.random.normal(0, 0.5, iter)
+
+#Put the measurements into a matrix
+measurements = np.stack((xPos, yPos), axis=1).reshape((iter,2,1))
+print('Measurements: ', measurements.shape, '\n\n', measurements[0:5], '\n', '...')
+
+#Process measurement noise covariance
+R = np.diag([0.25, 0.25])
+print('R Matrix: ', R.shape, '\n\n', R)
+
+#Create empty matrices
+x_hat = np.zeros((iter, 2,1))
+P = np.zeros((iter,2,2))
+x_hat_min = np.zeros((iter, 2,1))
+P_min = np.zeros((iter,2,2))
+K = np.zeros((iter,2,2))
+
+#Initialize the position
+x_hat[0] = [[0],[0]]
+
+#Initialize the error covariance
+P[0] = np.diag([1000.0, 1000.0])
+print('x_hat[0]:\n\n', x_hat[0], '\n\n P[0] Matrix: ', P[0].shape, '\n\n', P[0])
+
+#Create A matrix
+A = np.array([[1.0, 0.0],
+               [0.0, 1.0]])
+
+#Create H matrix
+H = np.eye(2)
+
+#I matrix for Kalman Gain
+I = np.eye(2)
+
+print('A Matrix \n\n', A, '\n\n H Matrix \n\n', H, '\n\n I Matrix \n\n', I)
+
+for k in range(1, iter):
+    #Calculate a priori estimate and error covariance
+    x_hat_min[k] = A.dot(x_hat[k-1])
+    P_min[k] = A.dot(P[k-1]).dot(A.T) + Q
+    
+    #Calculate Kalman Gain
+    S = H.dot(P_min[k]).dot(H.T) + R
+    K[k] = P_min[k].dot(H.T).dot(inv(S))
+    
+    #Calculate a posteriori estimate and error covariance
+    x_hat[k] = x_hat_min[k] + K[k].dot(measurements[k] - H.dot(x_hat_min[k]))
+    P[k] = (I - K[k]).dot(P_min[k])
+    
+plt.figure(figsize=(7,7))
+
+for n in range(iter):
+    plt.scatter(float(measurements[n][0]), float(measurements[n][1]), 
+                color='orange', label='Measured Position', alpha=0.7)
+    plt.scatter(float(x_hat[n][0]), float(x_hat[n][1]), 
+                color='blue', label='Kalman Position', alpha=0.3)
+
+plt.scatter(actualX, actualY, color='red', s=100, label='Actual Position')
+plt.title('Actual, Measured and Estimated Positions')
+plt.xlabel('X Axis')
+plt.ylabel('Y Axis');
+
+plt.figure(figsize=(10,5))
+
+for n in range(iter):
+    plt.scatter(x = n, y = measurements[n][0], label='Measurements', color='orange', alpha=0.7)
+    plt.scatter(x = n, y = x_hat[n][0], label='Estimate After Kalman', color='blue', alpha=0.5)
+plt.axhline(actualX, color='r', label='Actual X Position')
+plt.title('X Axis Actual, Measured and Estimated Positions)
+plt.xlabel('Number of Steps')
+plt.ylabel('X Position')
+
+plt.figure(figsize=(10,5))
+
+for n in range(iter):
+    plt.scatter(x = n, y = measurements[n][1], label='Measurements', color='orange', alpha=0.7)
+    plt.scatter(x = n, y = x_hat[n][1], label='Estimate After Kalman', color='blue', alpha=0.5)
+plt.axhline(actualX, color='r', label='Actual X Position')
+plt.title('Y Axis Actual, Measured and Estimated Positions')
+plt.xlabel('Number of Steps')
+plt.ylabel('Y Position');
